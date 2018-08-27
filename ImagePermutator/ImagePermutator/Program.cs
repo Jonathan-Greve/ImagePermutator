@@ -6,20 +6,45 @@ namespace ImagePermutator
 {
     class ImageSheet
     {
+        private int numRows;
+        private int numCols;
+
         public Image SourceImage { get; private set; }
-        public SheetSpecification Specification { get; private set; }
-
         public Image OutputImage { get; private set; }
+        public SheetSpecification Specification { get; private set; }
+        public Rectangle CropArea { get; private set; }
 
-        public ImageSheet(Image SourceImage, SheetSpecification Specification)
+        public void SetSpecification(SheetSpecification specification)
         {
-            this.SourceImage = SourceImage;
-            this.Specification = Specification;
+            Specification = specification;
+            numRows = Specification.SheetFormat.Height / Specification.ImageFormat.Height;
+            numCols = Specification.SheetFormat.Width / Specification.ImageFormat.Width;
+        }
+
+        public void SetCropArea(int xStart, int yStart, int xEnd, int yEnd)
+        {
+            Point rectangleStartPoint = new Point(xStart, yStart);
+            Size rectangleSize = new Size(xStart - xEnd, yStart - yEnd);
+            CropArea = new Rectangle(rectangleStartPoint, rectangleSize);
         }
 
         public void Create()
         {
+            int borderThickness = CropArea.Width / 100;
+            double aspectRatio = (double)Specification.ImageFormat.Width / Specification.ImageFormat.Height;
+            int OutputImageHeight = numCols * CropArea.Width + borderThickness;
+            int OutputImageWidth = (int)(OutputImageHeight * aspectRatio);
+            OutputImage = new Bitmap(OutputImageHeight,OutputImageWidth);
+        }
 
+        static public ImageSheet FromImage(Image sourceImage)
+        {
+            return new ImageSheet(sourceImage);
+        }
+
+        private ImageSheet(Image SourceImage)
+        {
+            this.SourceImage = SourceImage;
         }
     }
 
@@ -78,8 +103,9 @@ namespace ImagePermutator
                 ImageFormat = new PassportPhotoFormat()
             };
 
-            ImageSheet sheet = new ImageSheet(inputImage, specification);
-            sheet.Create();
+            ImageSheet sheet = ImageSheet.FromImage(inputImage);
+            sheet.SetSpecification(specification);
+            sheet.SetCropArea(900, 1300);
             
             Console.WriteLine("SheetFormat.Width: {0}", specification.SheetFormat.Width);
 
