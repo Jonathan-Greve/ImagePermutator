@@ -6,49 +6,65 @@ namespace ImagePermutator
 {
     class ImageSheet
     {
-        private int numRows;
-        private int numCols;
+        private int numRows, numCols;
+        private int borderThicknessW, borderThicknessH;
 
         public Image SourceImage { get; private set; }
         public Image OutputImage { get; private set; }
-        public SheetSpecification Specification { get; private set; }
+        public SheetFormat SheetFormat { get; private set; }
+        public ImageFormat ImageFormat { get; private set; }
         public Rectangle CropArea { get; private set; }
 
-        public void SetSpecification(SheetSpecification specification)
-        {
-            Specification = specification;
-            numRows = Specification.SheetFormat.Height / Specification.ImageFormat.Height;
-            numCols = Specification.SheetFormat.Width / Specification.ImageFormat.Width;
-        }
-
-        public void SetCropArea(int xStart, int yStart, int xEnd, int yEnd)
-        {
-            Point rectangleStartPoint = new Point(xStart, yStart);
-            Size rectangleSize = new Size(xEnd- xStart, yEnd- yStart);
-            CropArea = new Rectangle(rectangleStartPoint, rectangleSize);
-        }
+        public void SetSheetFormat(SheetFormat sheetFormat) => SheetFormat = sheetFormat;
+        public void SetImageFormat(ImageFormat imageFormat) => ImageFormat = imageFormat;
+        public void SetCropArea(int xStart, int yStart, int xEnd, int yEnd) => 
+            CropArea = new Rectangle(new Point(xStart, yStart), new Size(xEnd - xStart, yEnd - yStart));
 
         public void Create()
         {
-            int borderThicknessW = CropArea.Width / 30;
-            double aspectRatio = (double)Specification.SheetFormat.Width / Specification.SheetFormat.Height;
-            int OutputImageWidth = numCols * CropArea.Width + borderThicknessW * (numCols + 1);
-            int OutputImageHeight = (int)(OutputImageWidth / aspectRatio);
-            numCols = OutputImageWidth / CropArea.Width;
-            int borderThicknessH = (OutputImageHeight - numRows * CropArea.Height) / (numRows + 1);
-            OutputImage = new Bitmap(OutputImageWidth,OutputImageHeight);
+            CreateOutputImage();
+            DrawOutputImage();
+        }
 
+        private void DrawOutputImage()
+        {
             Graphics imageHelper = Graphics.FromImage(OutputImage);
+            imageHelper.FillRectangle(new SolidBrush(Color.White), 0, 0, OutputImage.Width, OutputImage.Height);
 
             for (int col = 0; col < numCols; col++)
             {
-                for (int row = 0; row  < numRows; row ++)
+                for (int row = 0; row < numRows; row++)
                 {
-                    Rectangle insertPosition = new Rectangle(borderThicknessW + col * (CropArea.Width + borderThicknessW), borderThicknessH + row * (CropArea.Height + borderThicknessH), CropArea.Width, CropArea.Height);
+                    Rectangle insertPosition = new Rectangle(
+                        borderThicknessW + col * (CropArea.Width + borderThicknessW),
+                        borderThicknessH + row * (CropArea.Height + borderThicknessH), 
+                        CropArea.Width,
+                        CropArea.Height);
                     imageHelper.DrawImage(SourceImage, insertPosition, CropArea, GraphicsUnit.Pixel);
                 }
             }
+        }
 
+        private void CalcNumberOfRowsAndColumns()
+        {
+            numRows = SheetFormat.Height / ImageFormat.Height;
+            numCols = SheetFormat.Width / ImageFormat.Width;
+        }
+
+        private void CreateOutputImage()
+        {
+            CalcNumberOfRowsAndColumns();
+            CalcBorderThickness();
+            double aspectRatio = (double)SheetFormat.Width / SheetFormat.Height;
+            int OutputImageWidth = numCols * CropArea.Width + borderThicknessW * (numCols + 1);
+            int OutputImageHeight = (int)(OutputImageWidth / aspectRatio);
+            OutputImage = new Bitmap(OutputImageWidth, OutputImageHeight);
+        }
+
+        private void CalcBorderThickness()
+        {
+            borderThicknessW = (int)((double)(SheetFormat.Width % ImageFormat.Width) / ImageFormat.Width * CropArea.Width / (numCols + 1));
+            borderThicknessH = (int)((double)(SheetFormat.Height % ImageFormat.Height) / ImageFormat.Height * CropArea.Height / (numRows + 1));
         }
 
         static public ImageSheet FromImage(Image sourceImage)
@@ -75,33 +91,43 @@ namespace ImagePermutator
     }
     public class CustomSheet : SheetFormat
     {
-        static private int width;
-        static private int height;
-        override public int Width { get; } = width;
-        override public int Height { get; } = height;
+        override public int Width { get; }
+        override public int Height { get; }
 
-        public CustomSheet(int Width, int Height)
+        public CustomSheet(int width, int height)
         {
-            width = Width;
-            height = Height;
+            Width = width;
+            Height = height;
         }
     }
 
     public abstract class ImageFormat
     {
-        public abstract int Width { get; set; }
-        public abstract int Height { get; set; }
+        public abstract int Width { get; }
+        public abstract int Height { get; }
     }
     public class PassportPhotoFormat : ImageFormat
     {
-        override public int Width { get; set; } = 51;
-        override public int Height { get; set; } = 51;
+        override public int Width { get; } = 51;
+        override public int Height { get; } = 51;
     }
 
-    public class SheetSpecification
+    public class ChineseVisaPhotoFormat : ImageFormat
     {
-        public SheetFormat SheetFormat { get; set; }
-        public ImageFormat ImageFormat { get; set; }
+        override public int Width { get; } = 38;
+        override public int Height { get; } = 48;
+    }
+
+    public class CustomImageFormat : ImageFormat
+    {
+        override public int Width { get; }
+        override public int Height { get; }
+
+        public CustomImageFormat(int width, int height)
+        {
+            Width = width;
+            Height = height;
+        }
     }
 
     class Program
@@ -111,18 +137,15 @@ namespace ImagePermutator
             string imagePath = "C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\DSC01325.jpg";
             Image inputImage = Image.FromFile(imagePath);
 
-            SheetSpecification specification = new SheetSpecification
-            {
-                SheetFormat = new A4(),
-                ImageFormat = new PassportPhotoFormat()
-            };
-
             ImageSheet sheet = ImageSheet.FromImage(inputImage);
-            sheet.SetSpecification(specification);
+            //sheet.SetSheetFormat(new A4());
+            sheet.SetSheetFormat(new CustomSheet(110, 110));
+            //sheet.SetImageFormat(new ChineseVisaPhotoFormat());
+            sheet.SetImageFormat(new CustomImageFormat(51, 51));
+            //sheet.SetCropArea(2100, 1400, 4100, 1400 + (int)(2000*1.2632));
             sheet.SetCropArea(2100, 1400, 4100, 3400);
             sheet.Create();
-            
-            sheet.OutputImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\DSC01325Outitttt.jpg");
+            sheet.OutputImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\TestOut.jpg");
         }
     }
 }
