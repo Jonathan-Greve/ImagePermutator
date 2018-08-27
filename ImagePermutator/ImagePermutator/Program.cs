@@ -105,7 +105,7 @@ namespace ImagePermutator
 
             ImageSheet sheet = ImageSheet.FromImage(inputImage);
             sheet.SetSpecification(specification);
-            sheet.SetCropArea(900, 1300);
+            sheet.SetCropArea(900, 1300, 2000, 2400);
             
             Console.WriteLine("SheetFormat.Width: {0}", specification.SheetFormat.Width);
 
