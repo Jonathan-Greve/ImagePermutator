@@ -24,17 +24,31 @@ namespace ImagePermutator
         public void SetCropArea(int xStart, int yStart, int xEnd, int yEnd)
         {
             Point rectangleStartPoint = new Point(xStart, yStart);
-            Size rectangleSize = new Size(xStart - xEnd, yStart - yEnd);
+            Size rectangleSize = new Size(xEnd- xStart, yEnd- yStart);
             CropArea = new Rectangle(rectangleStartPoint, rectangleSize);
         }
 
         public void Create()
         {
-            int borderThickness = CropArea.Width / 100;
-            double aspectRatio = (double)Specification.ImageFormat.Width / Specification.ImageFormat.Height;
-            int OutputImageHeight = numCols * CropArea.Width + borderThickness;
-            int OutputImageWidth = (int)(OutputImageHeight * aspectRatio);
-            OutputImage = new Bitmap(OutputImageHeight,OutputImageWidth);
+            int borderThicknessW = CropArea.Width / 30;
+            double aspectRatio = (double)Specification.SheetFormat.Width / Specification.SheetFormat.Height;
+            int OutputImageWidth = numCols * CropArea.Width + borderThicknessW * (numCols + 1);
+            int OutputImageHeight = (int)(OutputImageWidth / aspectRatio);
+            numCols = OutputImageWidth / CropArea.Width;
+            int borderThicknessH = (OutputImageHeight - numRows * CropArea.Height) / (numRows + 1);
+            OutputImage = new Bitmap(OutputImageWidth,OutputImageHeight);
+
+            Graphics imageHelper = Graphics.FromImage(OutputImage);
+
+            for (int col = 0; col < numCols; col++)
+            {
+                for (int row = 0; row  < numRows; row ++)
+                {
+                    Rectangle insertPosition = new Rectangle(borderThicknessW + col * (CropArea.Width + borderThicknessW), borderThicknessH + row * (CropArea.Height + borderThicknessH), CropArea.Width, CropArea.Height);
+                    imageHelper.DrawImage(SourceImage, insertPosition, CropArea, GraphicsUnit.Pixel);
+                }
+            }
+
         }
 
         static public ImageSheet FromImage(Image sourceImage)
@@ -105,34 +119,10 @@ namespace ImagePermutator
 
             ImageSheet sheet = ImageSheet.FromImage(inputImage);
             sheet.SetSpecification(specification);
-            sheet.SetCropArea(900, 1300, 2000, 2400);
+            sheet.SetCropArea(2100, 1400, 4100, 3400);
+            sheet.Create();
             
-            Console.WriteLine("SheetFormat.Width: {0}", specification.SheetFormat.Width);
-
-            int numberOfPhotos = 2;
-            int width_mm = 102;
-            int height_mm = 51;
-            float aspectRatio = width_mm / (float)height_mm;
-
-
-            Bitmap inputImageBMP = new Bitmap(inputImage);
-            Bitmap outputImageBMP = new Bitmap((int)(aspectRatio * inputImage.Width * numberOfPhotos), (inputImage.Width));
-
-
-            Size size = new Size((int)(aspectRatio * inputImage.Width), inputImage.Height);
-
-            Point location = new Point(1000, 1400);
-            Rectangle selectionArea = new Rectangle(location, size);
-
-
-
-            Point destination = new Point(0, 0);
-            Rectangle inputArea = new Rectangle(destination, size);
-
-            Graphics imageHelper = Graphics.FromImage(outputImageBMP);
-            imageHelper.DrawImage(inputImageBMP, inputArea, selectionArea, GraphicsUnit.Pixel);
-            //imageHelper.DrawImage(inputImageBMP, inputArea, selectionArea, GraphicsUnit.Pixel);
-            outputImageBMP.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\DSC01325Outtt.jpg");
+            sheet.OutputImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\DSC01325Outitttt.jpg");
         }
     }
 }
