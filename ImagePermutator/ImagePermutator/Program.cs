@@ -1,10 +1,8 @@
-﻿using System;
-using System.Drawing;
-using System.IO;
+﻿using System.Drawing;
 
 namespace ImagePermutator
 {
-    class ImageSheet
+    public class ImageSheet
     {
         private int numRows, numCols;
         private int borderThicknessW, borderThicknessH;
