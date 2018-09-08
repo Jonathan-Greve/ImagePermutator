@@ -1,4 +1,7 @@
-﻿using System.Drawing;
+﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.Primitives;
 
 namespace ImagePermutator
 {
@@ -6,74 +9,59 @@ namespace ImagePermutator
     {
         private int numRows, numCols;
         private int borderThicknessW, borderThicknessH;
-        private bool willRotateCroppedImage, willRotateOutputImage = false;
 
-        public Image SourceImage { get; private set; }
-        public Image CroppedImage { get; private set; }
-        public Image OutputImage { get; private set; }
+        public Image<Rgba32> SourceImage { get; private set; }
+        public Image<Rgba32> CroppedImage { get; private set; }
+        public Image<Rgba32> OutputImage { get; private set; }
         public SheetFormat SheetFormat { get; private set; }
         public ImageFormat ImageFormat { get; private set; }
         public Rectangle CropArea { get; private set; }
-        public RotateFlipType CroppedImageRotation { get; private set; }
-        public RotateFlipType OutputImageRotation { get; private set; }
+        public float CroppedImageRotationDegrees { get; private set; }
+        public float OutputImageRotationDegrees { get; private set; }
 
         public void SetSheetFormat(SheetFormat sheetFormat) => SheetFormat = sheetFormat;
         public void SetImageFormat(ImageFormat imageFormat) => ImageFormat = imageFormat;
         public void SetCropArea(int xStart, int yStart, int xEnd, int yEnd) =>
             CropArea = new Rectangle(new Point(xStart, yStart), new Size(xEnd - xStart, yEnd - yStart));
-        public void SetCroppedImageRotation(RotateFlipType rotateFlipType)
+        public void SetCroppedImageRotation(float rotateDegrees)
         {
-            CroppedImageRotation = rotateFlipType;
-            willRotateCroppedImage = true;
+            CroppedImageRotationDegrees = rotateDegrees;
         }
-        public void SetOutputImageRotation(RotateFlipType rotateFlipType)
+        public void SetOutputImageRotation(float rotateDegrees)
         {
-            OutputImageRotation = rotateFlipType;
-            willRotateOutputImage = true;
+            OutputImageRotationDegrees = rotateDegrees;
         }
 
         public void Create()
         {
             CreateOutputImage();
+            CreateCroppedImage();
             DrawOutputImage();
         }
 
         private void DrawOutputImage()
         {
-            CreateCroppedImage();
 
-            using (Graphics imageHelper = Graphics.FromImage(OutputImage))
+            for (int col = 0; col < numCols; col++)
             {
-                imageHelper.FillRectangle(new SolidBrush(Color.White), 0, 0, OutputImage.Width, OutputImage.Height);
-
-                for (int col = 0; col < numCols; col++)
+                for (int row = 0; row < numRows; row++)
                 {
-                    for (int row = 0; row < numRows; row++)
-                    {
-                        Rectangle insertPosition = new Rectangle(
-                            borderThicknessW + col * (CropArea.Width + borderThicknessW),
-                            borderThicknessH + row * (CropArea.Height + borderThicknessH),
-                            CropArea.Width,
-                            CropArea.Height);
-                        imageHelper.DrawImage(CroppedImage, insertPosition, new Rectangle(0, 0, CroppedImage.Width, CroppedImage.Height), GraphicsUnit.Pixel);
-                    }
+                    Point insertPosition = new Point(borderThicknessW + col * (CropArea.Width + borderThicknessW), borderThicknessH + row * (CropArea.Height + borderThicknessH));
+                    OutputImage.Mutate(i => i
+                    .DrawImage(CroppedImage, 1, insertPosition));
                 }
             }
-            if (willRotateOutputImage)
-            {
-                OutputImage.RotateFlip(OutputImageRotation);
-            }
+            if (OutputImageRotationDegrees > 0.0)
+                OutputImage.Mutate(i => i. Rotate(OutputImageRotationDegrees));
         }
 
         private void CreateCroppedImage()
         {
-            CroppedImage = new Bitmap(CropArea.Width, CropArea.Height);
-            using (Graphics croppedImageHelper = Graphics.FromImage(CroppedImage))
-            {
-                croppedImageHelper.DrawImage(SourceImage, new Rectangle(0, 0, CroppedImage.Width, CroppedImage.Height), CropArea, GraphicsUnit.Pixel);
-            }
-            if (willRotateCroppedImage)
-                CroppedImage.RotateFlip(CroppedImageRotation);
+            CroppedImage = new Image<Rgba32>(CropArea.Width, CropArea.Height);
+            CroppedImage = SourceImage.Clone(
+                ctx => ctx.Resize(CropArea.Width, CropArea.Height, new SixLabors.ImageSharp.Processing.Processors.Transforms.BicubicResampler(), CropArea, new Rectangle(0,0,CroppedImage.Width,CroppedImage.Height), true));
+            if (CroppedImageRotationDegrees > 0.0)
+                CroppedImage.Mutate(i => i.Rotate(CroppedImageRotationDegrees));
         }
 
         private void CalcNumberOfRowsAndColumns()
@@ -89,7 +77,8 @@ namespace ImagePermutator
             double aspectRatio = (double)SheetFormat.Width / SheetFormat.Height;
             int OutputImageWidth = numCols * CropArea.Width + borderThicknessW * (numCols + 1);
             int OutputImageHeight = (int)(OutputImageWidth / aspectRatio);
-            OutputImage = new Bitmap(OutputImageWidth, OutputImageHeight);
+            OutputImage = new Image<Rgba32>(OutputImageWidth, OutputImageHeight);
+            OutputImage.Mutate(i =>i.BackgroundColor(Rgba32.White));
         }
 
         private void CalcBorderThickness()
@@ -98,12 +87,12 @@ namespace ImagePermutator
             borderThicknessH = (int)((double)(SheetFormat.Height % ImageFormat.Height) / ImageFormat.Height * CropArea.Height / (numRows + 1));
         }
 
-        static public ImageSheet FromImage(Image sourceImage)
+        static public ImageSheet FromImage(Image<Rgba32> sourceImage)
         {
             return new ImageSheet(sourceImage);
         }
 
-        private ImageSheet(Image SourceImage)
+        private ImageSheet(Image<Rgba32> SourceImage)
         {
             this.SourceImage = SourceImage;
         }
@@ -166,7 +155,7 @@ namespace ImagePermutator
         static void Main(string[] args)
         {
             string imagePath = "C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\DSC01325.jpg";
-            Image inputImage = Image.FromFile(imagePath);
+            Image<Rgba32> inputImage = Image.Load(imagePath);
 
             ImageSheet sheet = ImageSheet.FromImage(inputImage);
             //sheet.SetSheetFormat(new A4());
@@ -175,10 +164,11 @@ namespace ImagePermutator
             sheet.SetImageFormat(new CustomImageFormat(51, 51));
             //sheet.SetCropArea(2100, 1400, 4100, 1400 + (int)(2000*1.2632));
             sheet.SetCropArea(2100, 1400, 4100, 3400);
-            sheet.SetCroppedImageRotation(RotateFlipType.Rotate270FlipNone);
-            sheet.SetOutputImageRotation(RotateFlipType.Rotate90FlipNone);
+            sheet.SetCroppedImageRotation(270);
+            sheet.SetOutputImageRotation(90);
             sheet.Create();
-            sheet.OutputImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\TestOut.jpg");
+            sheet.CroppedImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\CroppedImageTest.jpg");
+            sheet.OutputImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\TestOutImageSharp.jpg");
         }
     }
 }
