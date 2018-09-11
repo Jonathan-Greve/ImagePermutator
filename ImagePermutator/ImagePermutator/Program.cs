@@ -52,14 +52,14 @@ namespace ImagePermutator
                 }
             }
             if (OutputImageRotationDegrees > 0.0)
-                OutputImage.Mutate(i => i. Rotate(OutputImageRotationDegrees));
+                OutputImage.Mutate(i => i.Rotate(OutputImageRotationDegrees));
         }
 
         private void CreateCroppedImage()
         {
             CroppedImage = new Image<Rgba32>(CropArea.Width, CropArea.Height);
             CroppedImage = SourceImage.Clone(
-                ctx => ctx.Resize(CropArea.Width, CropArea.Height, new SixLabors.ImageSharp.Processing.Processors.Transforms.BicubicResampler(), CropArea, new Rectangle(0,0,CroppedImage.Width,CroppedImage.Height), true));
+                ctx => ctx.Resize(CropArea.Width, CropArea.Height, new SixLabors.ImageSharp.Processing.Processors.Transforms.BicubicResampler(), CropArea, new Rectangle(0, 0, CroppedImage.Width, CroppedImage.Height), true));
             if (CroppedImageRotationDegrees > 0.0)
                 CroppedImage.Mutate(i => i.Rotate(CroppedImageRotationDegrees));
         }
@@ -78,7 +78,7 @@ namespace ImagePermutator
             int OutputImageWidth = numCols * CropArea.Width + borderThicknessW * (numCols + 1);
             int OutputImageHeight = (int)(OutputImageWidth / aspectRatio);
             OutputImage = new Image<Rgba32>(OutputImageWidth, OutputImageHeight);
-            OutputImage.Mutate(i =>i.BackgroundColor(Rgba32.White));
+            OutputImage.Mutate(i => i.BackgroundColor(Rgba32.White));
         }
 
         private void CalcBorderThickness()
@@ -155,20 +155,27 @@ namespace ImagePermutator
         static void Main(string[] args)
         {
             string imagePath = "C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\DSC01325.jpg";
-            Image<Rgba32> inputImage = Image.Load(imagePath);
+            for (int i = 0; i < 100; i++)
+            {
+                Image<Rgba32> inputImage = Image.Load(imagePath);
 
-            ImageSheet sheet = ImageSheet.FromImage(inputImage);
-            //sheet.SetSheetFormat(new A4());
-            sheet.SetSheetFormat(new CustomSheet(110, 160));
-            //sheet.SetImageFormat(new ChineseVisaPhotoFormat());
-            sheet.SetImageFormat(new CustomImageFormat(51, 51));
-            //sheet.SetCropArea(2100, 1400, 4100, 1400 + (int)(2000*1.2632));
-            sheet.SetCropArea(2100, 1400, 4100, 3400);
-            sheet.SetCroppedImageRotation(270);
-            sheet.SetOutputImageRotation(90);
-            sheet.Create();
-            sheet.CroppedImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\CroppedImageTest.jpg");
-            sheet.OutputImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\TestOutImageSharp.jpg");
+                ImageSheet sheet = ImageSheet.FromImage(inputImage);
+                //sheet.SetSheetFormat(new A4());
+                sheet.SetSheetFormat(new CustomSheet(110, 160));
+                //sheet.SetImageFormat(new ChineseVisaPhotoFormat());
+                sheet.SetImageFormat(new CustomImageFormat(51, 51));
+                //sheet.SetCropArea(2100, 1400, 4100, 1400 + (int)(2000*1.2632));
+                sheet.SetCropArea(2100, 1400, 4100, 3400);
+                sheet.SetCroppedImageRotation(270);
+                sheet.SetOutputImageRotation(90);
+                sheet.Create();
+                sheet.CroppedImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\CroppedImageTest.jpg");
+                sheet.OutputImage.Save("C:\\Users\\Jonathan Greve\\Pictures\\TestImages\\TestOutImageSharp.jpg");
+                inputImage.Dispose();
+                sheet.CroppedImage.Dispose();
+                sheet.SourceImage.Dispose();
+                sheet.OutputImage.Dispose();
+            }
         }
     }
 }
